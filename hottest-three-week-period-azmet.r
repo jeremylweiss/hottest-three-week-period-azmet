@@ -110,6 +110,33 @@ for (cal_day in min(stn_data$JDay):max(stn_data$JDay)) {
 rm(cal_day)
 rm(df)
 
+
+
+
+stn_data$Year <- factor(stn_data$Year,
+                                  levels = c(
+                                    "above105", "bet100105", "bet95100",
+                                    "bet6065", "bet5560", "below55"
+                                  ),
+                                  labels = c(
+                                    "> 105°F", "100-105°F", "95-100°F",
+                                    "60-65°F", "55-60°F", "< 55°F"
+                                  ))
+
+
+category_colors <- c("red", "green", "blue", "black")
+category_labels <- c("this is red", "", "", "this is black")
+
+
+
+
+# layered graph
+ggplot(stn_data, aes(cut, price)) + 
+  geom_boxplot(aes(fill = factor(cut))) + 
+  geom_point(data = cut.probs, aes(cut, price, color = factor(quantile)), size = 5) +
+  scale_fill_discrete(name = "Quality of the Cut") +
+  scale_color_discrete(name = "My Quantiles")
+
 # Create a ggplot object for graphing daily maximum temperature values
 p <- ggplot() +
   
@@ -131,32 +158,66 @@ p <- ggplot() +
            fill = "gray50") +
 
   # Add Tmax daily values
-  geom_point(data = filter(stn_data, Year == min(stn_data$Year)),
-             mapping = aes(x = JDay, y = Tmax, fill = as.factor(Year)),
-             pch = 16,
+  geom_point(data = stn_data,
+             mapping = aes(x = JDay, y = Tmax, fill = factor(Year)),
+             pch = 21,
              alpha = 0.35,
              size = 3,
-             show.legend = NA) +
+             stroke = 0.1) +
+             #show.legend = TRUE) +
   
-  #geom_point(data = filter(stn_data, Year != min(stn_data$Year)),
-  #           mapping = aes(x = JDay, y = Tmax),
-  #           pch = 16,
-  #           alpha = 0.35,
-  #           size = 3,
-  #           show.legend = FALSE) +
+  scale_fill_discrete(name = "daily values",
+                      breaks = c("2017", "2018", "2019", "2020")) +
   
-  scale_fill_manual(values = "red", name = NULL, labels = "Daily Values") +
-
+  
+  
+  #scale_fill_discrete(name = "daily values",
+  ##                    values = category_colors,
+  #                   name = NULL,
+  #                   labels = category_labels) +
+  
   # Add Tmax daily average values
   geom_line(data = filter(stn_data, Year == min(stn_data$Year)), 
-            mapping = aes(x = JDay, y = Tmax_davg),
-            #color = "gray30",
+            mapping = aes(x = JDay, y = Tmax_davg, color = factor(min(stn_data$Year))),
+            color = "gray30",
             lineend = "round",
             linetype = "solid",
             size = 1.5,
-            show.legend = NA) +
+            show.legend = TRUE) +
+  
+  scale_color_discrete(name = "average daily values",
+                     breaks = "2017") +
+  
+  
+  
+  
+  
+  geom_point(data = filter(stn_data, Year == min(stn_data$Year)),
+             mapping = aes(x = JDay, y = Tmax, color = factor(Year)),
+             pch = 16,
+             alpha = 0.35,
+             size = 3,
+             show.legend = TRUE) +
+  
+  geom_point(data = filter(stn_data, Year != min(stn_data$Year)),
+             mapping = aes(x = JDay, y = Tmax, color = factor(Year)),
+             pch = 16,
+             alpha = 0.35,
+             size = 3,
+             show.legend = FALSE) +
+  
+  
+  # Add Tmax daily average values
+  geom_line(data = filter(stn_data, Year == min(stn_data$Year)), 
+            mapping = aes(x = JDay, y = Tmax_davg),
+            color = "gray30",
+            lineend = "round",
+            linetype = "solid",
+            size = 1.5,
+            show.legend = FALSE) +
   
   #scale_color_manual(values = "red", name = NULL, labels = "Daily Average") +
+  guides(color=guide_legend("Species"),fill=guide_legend("Cluster")) +
   
   guides(color = guide_legend(order = 1),
          fill = guide_legend(order = 2)) +
@@ -221,7 +282,7 @@ ggsave("./hottest-three-week-period-azmet-willcox-bench.eps",
        width = 6, height = 4, units = "in", dpi = 300)
 
 
-
+  
 
 
 
