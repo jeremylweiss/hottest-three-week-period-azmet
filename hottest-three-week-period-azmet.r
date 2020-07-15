@@ -70,85 +70,43 @@ stn_data$Tmax_mavg <- as.numeric(stn_data$Tmax_mavg)
 
 
 # To facilitate graphing interannual data that includes leap years, subtract 1
-# from 'JDay' values in a leap year. The graph will start on May 15, so this
-# won't be an issue in lining up values from January and February.
+# from 'JDay' values in a leap year
 stn_data$JDay[which(leap_year(stn_data$Year) == TRUE)] <- 
   stn_data$JDay[which(leap_year(stn_data$Year) == TRUE)] - 1
 
 # Calculate average maximum temperature by calendar day and moving average of 
 # daily average values for the station period of record
-stn_data["Tmax_davg"] <- NA
+stn_data_avg <- as.data.frame(seq(from = 1, to = 365))
+colnames(stn_data_avg) <- "JDay"
+stn_data_avg["Tmax_davg"] <- NA
+stn_data_avg["Tmax_mavgdavg"] <- NA
 
-df <- as.data.frame(stn_data$JDay)
-colnames(df) <- "JDay" 
-df["Tmax_davg"] <- NA 
-df["Tmax_mavgdavg"] <- NA
-
-for (cal_day in min(stn_data$JDay):max(stn_data$JDay)) {
-  stn_data$Tmax_davg[which(stn_data$JDay == cal_day)] <-  
-    mean(stn_data$Tmax[which(stn_data$JDay == cal_day)], na.rm = TRUE)
-  
-  df$Tmax_davg[which(df$JDay == cal_day)] <-  
+for (cal_day in min(stn_data_avg$JDay):max(stn_data_avg$JDay)) {
+  stn_data_avg$Tmax_davg[cal_day] <-  
     mean(stn_data$Tmax[which(stn_data$JDay == cal_day)], na.rm = TRUE)
 }
 rm(cal_day)
 
-# Calculate moving average values of daily average values
-df$Tmax_mavgdavg <- stats::filter(
-  x = df$Tmax_davg, 
+stn_data_avg$Tmax_mavgdavg <- stats::filter(
+  x = stn_data_avg$Tmax_davg, 
   filter = rep(1, filter_length) / filter_length,
   method = "convolution",
   sides = 2,
   circular = FALSE)
-df$Tmax_mavgdavg <- as.numeric(df$Tmax_mavgdavg)
-
-stn_data["Tmax_mavgdavg"] <- NA
-for (cal_day in min(stn_data$JDay):max(stn_data$JDay)) {
-  stn_data$Tmax_mavgdavg[which(stn_data$JDay == cal_day)] <-  
-    df$Tmax_mavgdavg[which(df$JDay == cal_day)]
-}
-rm(cal_day)
-rm(df)
-
-
-
-
-stn_data$Year <- factor(stn_data$Year,
-                                  levels = c(
-                                    "above105", "bet100105", "bet95100",
-                                    "bet6065", "bet5560", "below55"
-                                  ),
-                                  labels = c(
-                                    "> 105°F", "100-105°F", "95-100°F",
-                                    "60-65°F", "55-60°F", "< 55°F"
-                                  ))
-
-
-category_colors <- c("red", "green", "blue", "black")
-category_labels <- c("this is red", "", "", "this is black")
-
-
-
-
-# layered graph
-ggplot(stn_data, aes(cut, price)) + 
-  geom_boxplot(aes(fill = factor(cut))) + 
-  geom_point(data = cut.probs, aes(cut, price, color = factor(quantile)), size = 5) +
-  scale_fill_discrete(name = "Quality of the Cut") +
-  scale_color_discrete(name = "My Quantiles")
+stn_data_avg$Tmax_mavgdavg <- as.numeric(stn_data_avg$Tmax_mavgdavg)
 
 # Create a ggplot object for graphing daily maximum temperature values
 p <- ggplot() +
   
   # Background shading for warmest moving average value and its range
   annotate("rect",
-           xmin = stn_data$JDay[which(
-             stn_data$Tmax_mavgdavg == max(
-               stn_data$Tmax_mavgdavg, na.rm = TRUE
+           xmin = stn_data_avg$JDay[which(
+             stn_data_avg$Tmax_mavgdavg == max(
+               stn_data_avg$Tmax_mavgdavg, na.rm = TRUE
                ))][1] - 10,
-           xmax = stn_data$JDay[which(
-             stn_data$Tmax_mavgdavg == max(
-               stn_data$Tmax_mavgdavg, na.rm = TRUE
+           xmax = stn_data_avg$JDay[which(
+             stn_data_avg$Tmax_mavgdavg == max(
+               stn_data_avg$Tmax_mavgdavg, na.rm = TRUE
                ))][1] + 10,
            ymin = min(filter(stn_data, 
                              Month >= 5 & Month <= 7)$Tmax, na.rm = TRUE),
@@ -156,75 +114,44 @@ p <- ggplot() +
                              Month >= 5 & Month <= 7)$Tmax, na.rm = TRUE),
            alpha=0.2,
            fill = "gray50") +
+  
+  annotate("text",
+           x = stn_data_avg$JDay[which(
+             stn_data_avg$Tmax_mavgdavg == max(
+               stn_data_avg$Tmax_mavgdavg, na.rm = TRUE
+             ))][1] - 10,
+           y = 75,
+           label = "Some text",
+           angle = 90,
+           color = "gray40",
+           size = 10) +
 
   # Add Tmax daily values
   geom_point(data = stn_data,
-             mapping = aes(x = JDay, y = Tmax, fill = factor(Year)),
-             pch = 21,
-             alpha = 0.35,
+             mapping = aes(x = JDay, y = Tmax, shape = "circle"),
+             alpha = 0.5,
+             color = "gray50",
              size = 3,
              stroke = 0.1) +
              #show.legend = TRUE) +
   
-  scale_fill_discrete(name = "daily values",
-                      breaks = c("2017", "2018", "2019", "2020")) +
-  
-  
-  
-  #scale_fill_discrete(name = "daily values",
-  ##                    values = category_colors,
-  #                   name = NULL,
-  #                   labels = category_labels) +
-  
   # Add Tmax daily average values
-  geom_line(data = filter(stn_data, Year == min(stn_data$Year)), 
-            mapping = aes(x = JDay, y = Tmax_davg, color = factor(min(stn_data$Year))),
+  geom_line(data = stn_data_avg, 
+            mapping = aes(x = JDay, y = Tmax_davg, linetype = "solid"),
             color = "gray30",
             lineend = "round",
-            linetype = "solid",
-            size = 1.5,
-            show.legend = TRUE) +
+            size = 1.5) +
+#            show.legend = TRUE) +
   
-  scale_color_discrete(name = "average daily values",
-                     breaks = "2017") +
+  guides(shape=guide_legend("Daily Values", order = 1),
+         linetype=guide_legend("Daily Average", order = 2)) +
   
-  
-  
-  
-  
-  geom_point(data = filter(stn_data, Year == min(stn_data$Year)),
-             mapping = aes(x = JDay, y = Tmax, color = factor(Year)),
-             pch = 16,
-             alpha = 0.35,
-             size = 3,
-             show.legend = TRUE) +
-  
-  geom_point(data = filter(stn_data, Year != min(stn_data$Year)),
-             mapping = aes(x = JDay, y = Tmax, color = factor(Year)),
-             pch = 16,
-             alpha = 0.35,
-             size = 3,
-             show.legend = FALSE) +
-  
-  
-  # Add Tmax daily average values
-  geom_line(data = filter(stn_data, Year == min(stn_data$Year)), 
-            mapping = aes(x = JDay, y = Tmax_davg),
-            color = "gray30",
-            lineend = "round",
-            linetype = "solid",
-            size = 1.5,
-            show.legend = FALSE) +
-  
-  #scale_color_manual(values = "red", name = NULL, labels = "Daily Average") +
-  guides(color=guide_legend("Species"),fill=guide_legend("Cluster")) +
-  
-  guides(color = guide_legend(order = 1),
-         fill = guide_legend(order = 2)) +
+  scale_shape_manual(values = "circle", labels = "") +
+  scale_linetype_manual(values = "solid", labels = "") +
   
   # Add the title, subtitle, axis labels, and caption
   ggtitle("Daily Maximum Temperature") +
-  labs(subtitle = "AZMET Willcox Bench station",
+  labs(subtitle = "AZMET Willcox Bench station, 2017-2020",
        x = "\nDate",
        y = "°F\n",
        caption = "\ndata source: AZMET (cals.arizona.edu/azmet)") +
@@ -240,9 +167,9 @@ p <- ggplot() +
   scale_y_continuous(
     breaks = seq(from = 0, to = max(stn_data$Tmax, na.rm = TRUE), by = 5),
     limits = c(
-      min(filter(stn_data, Month >= 5 & Month <= 7)$Tmax, na.rm = TRUE),
-      max(filter(stn_data, Month >= 5 & Month <= 7)$Tmax, na.rm = TRUE)),
-    expand = c(0.06, 0.0)
+      min(filter(stn_data, Month >= 5 & Month <= 7)$Tmax, na.rm = TRUE) - 1,
+      max(filter(stn_data, Month >= 5 & Month <= 7)$Tmax, na.rm = TRUE)) + 1,
+    expand = c(0.0, 0.0)
     ) +
   
   # Further customize the figure appearance
@@ -257,8 +184,9 @@ p <- ggplot() +
         axis.title.x = element_text(color = "gray40", size = 10),
         axis.title.y = element_text(color = "gray40", size = 10),
         legend.direction = "vertical",
-        legend.text = element_text(color = "gray40", size = 10),
-        legend.title = element_blank(),
+        legend.spacing = unit(1.0, 'mm'),
+        legend.text = element_blank(),
+        legend.title = element_text(color = "gray40", size = 10),
         legend.position = "right",
         panel.border = element_blank(),
         panel.grid.major.x = element_line(color = "gray80", size = 0.25),
@@ -281,8 +209,6 @@ ggsave("./hottest-three-week-period-azmet-willcox-bench.eps",
        plot = p, device = cairo_pdf, path = NULL, scale = 1,
        width = 6, height = 4, units = "in", dpi = 300)
 
-
-  
 
 
 
