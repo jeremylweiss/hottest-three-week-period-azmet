@@ -116,6 +116,8 @@ rm(entry)
 # Create a ggplot object for graphing daily maximum temperature values
 p <- ggplot() +
   
+  # 21-DAY MOVING AVERAGE SHADED REGION ----------
+  
   # Background shading for warmest moving average value and its range
   geom_rect(aes(
     xmin = stn_data_avg$JDay[which(
@@ -191,11 +193,21 @@ p <- ggplot() +
     ),
     size = 10 / .pt, color = "gray40", show.legend = FALSE) +
   
+  # DAILY VALUES AS POINTS ----------
+  
   # Add Tmax daily values
   geom_point(data = stn_data,
              mapping = aes(x = JDay, y = Tmax, shape = "circle"),
              alpha = 0.5,
              color = "gray50",
+             size = 3,
+             stroke = 0.1) +
+             #show.legend = TRUE) +
+  
+  geom_point(data = filter(stn_data, Year == 2020),
+             mapping = aes(x = JDay, y = Tmax, shape = "circle"),
+             alpha = 0.5,
+             color = "orange",
              size = 3,
              stroke = 0.1) +
              #show.legend = TRUE) +
