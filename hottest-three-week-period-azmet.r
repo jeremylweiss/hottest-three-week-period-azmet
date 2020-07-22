@@ -116,8 +116,10 @@ rm(entry)
 # Create a ggplot object for graphing daily maximum temperature values
 p <- ggplot() +
   
+  
   # 21-DAY MOVING AVERAGE SHADED REGION ----------
   
+
   # Background shading for warmest moving average value and its range
   geom_rect(aes(
     xmin = stn_data_avg$JDay[which(
@@ -282,7 +284,9 @@ p <- ggplot() +
 p
 
 #  Save the figure as a .png file in the current directory
-ggsave("./hottest-three-week-period-azmet-willcox-bench.eps",
+ggsave(file = paste("hottest-three-week-period-azmet-willcox-bench-",
+                    Sys.Date(),
+                    ".eps"),
        plot = p, device = cairo_pdf, path = NULL, scale = 1,
        width = 6, height = 4, units = "in", dpi = 300)
 
