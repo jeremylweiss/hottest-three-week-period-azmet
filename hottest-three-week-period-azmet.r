@@ -64,11 +64,16 @@ stn_data$Tmax_mavg <- stats::filter(
   method = "convolution",
   sides = 2,
   circular = FALSE)
-stn_data$Tmax_mavg <- as.numeric(stn_data$Tmax_mavg)
+#stn_data$Tmax_mavg <- as.numeric(stn_data$Tmax_mavg)
 
 
 # MAKE AND SAVE TIMESERIES PLOT --------------------
 
+
+# Filter stn_data to months 5,6,7. Facet wrap the four years of data in 1 col.
+# Annotate graph to make legend unnecessary or minimal. Gray block and color
+# block overaly and opacity. Calc daily average and moving average before leap
+# year adjustment. Try to get daily avg and moving avg into 'stn_data' df.
 
 # To facilitate graphing interannual data that includes leap years, subtract 1
 # from 'JDay' values in a leap year
