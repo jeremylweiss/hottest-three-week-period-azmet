@@ -1,7 +1,8 @@
 
 
 # This code calculates and graphs a 21-day moving average of daily maximum 
-# temperatures for AZMET Willcox Bench station
+# temperatures for AZMET Willcox Bench station for the May 15-July 15 period of
+# interest
 
 # AZMET data are at: https://cals.arizona.edu/azmet/
 
@@ -47,7 +48,7 @@ stn_data <- azmet.daily.data.download(stn_name)
 # Retain necessary variables
 stn_data <- select(stn_data, Date, Year, Month, Day, JDay, Tmax)
 
-# For Willcox Bench case
+# For Willcox Bench case, in which data collection starts on June 18
 stn_data <- filter(stn_data, Year != yr_start)
 
 # Convert temperature from Celsius to Fahrenheit
@@ -64,48 +65,200 @@ stn_data$Tmax_mavg <- stats::filter(
   method = "convolution",
   sides = 2,
   circular = FALSE)
-#stn_data$Tmax_mavg <- as.numeric(stn_data$Tmax_mavg)
+
+# Calculate average maximum temperature by Julian day and moving average of 
+# these daily average values for the station period of record
+stn_data["Tmax_JDay_avg"] <- NA
+for (jd in min(stn_data$JDay):max(stn_data$JDay)) {
+  df <- filter(stn_data, JDay == jd)
+  stn_data$Tmax_JDay_avg[which(stn_data$JDay == jd)] <- mean(df$Tmax)
+}
+rm(jd, df)
+
+stn_data["Tmax_JDay_mavg"] <- NA
+for (yr in min(stn_data$Year):max(stn_data$Year)) {
+  df <- filter(stn_data, Year == yr)
+  df$Tmax_JDay_mavg <- stats::filter(
+    x = df$Tmax_JDay_avg, 
+    filter = rep(1, filter_length) / filter_length,
+    method = "convolution",
+    sides = 2,
+    circular = FALSE
+    )
+  
+  stn_data$Tmax_JDay_mavg[which(stn_data$Year == yr)] <- df$Tmax_JDay_mavg
+}
+rm(yr, df)
 
 
 # MAKE AND SAVE TIMESERIES PLOT --------------------
 
 
-# Filter stn_data to months 5,6,7. Facet wrap the four years of data in 1 col.
-# Annotate graph to make legend unnecessary or minimal. Gray block and color
-# block overaly and opacity. Calc daily average and moving average before leap
-# year adjustment. Try to get daily avg and moving avg into 'stn_data' df.
+stn_data_plot <- filter(stn_data, Month >= 4 & Month <= 8)
 
 # To facilitate graphing interannual data that includes leap years, subtract 1
-# from 'JDay' values in a leap year
-stn_data$JDay[which(leap_year(stn_data$Year) == TRUE)] <- 
-  stn_data$JDay[which(leap_year(stn_data$Year) == TRUE)] - 1
+# from 'JDay' values in a leap year. This works here, since we are not using 
+# data from January nor February
+stn_data_plot$JDay[which(leap_year(stn_data_plot$Year) == TRUE)] <- 
+  stn_data_plot$JDay[which(leap_year(stn_data_plot$Year) == TRUE)] - 1
+
+# Check for multiple occurrences of the maximum value of the moving average
+# time series for each year. Plot code below assumes there is only one
+# occurrence of the maximum value. Then, create a reference tables for start and
+# end Julian days of 21-day period centered on maximum 21-day moving average 
+# values
+for (yr in min(stn_data_plot$Year):max(stn_data_plot$Year)) {
+  df <- filter(stn_data_plot, Year == yr)
+  print(yr)
+  print(head(sort(df$Tmax_mavg, decreasing = TRUE)))
+  print(head(sort(df$Tmax_JDay_mavg, decreasing = TRUE)))
+  flush.console()
+}
+rm(yr, df)
+
+mavg_window_yr <- as.data.frame(min(stn_data_plot$Year):max(stn_data_plot$Year))
+colnames(mavg_window_yr) <- "Year"
+mavg_window_yr["Start"] <- NA
+mavg_window_yr["End"] <- NA
+stn_data_plot["MA_Start"] <- NA
+stn_data_plot["MA_End"] <- NA
+for (yr in min(stn_data_plot$Year):max(stn_data_plot$Year)) {
+  # May 15 - July 15
+  df <- filter(stn_data_plot, Year == yr & JDay >= 135 & JDay <= 196)
+  mavg_window_yr$Start[which(mavg_window_yr$Year == yr)] <- 
+    df$JDay[which(df$Tmax_mavg == max(df$Tmax_mavg))] - 10
+  mavg_window_yr$End[which(mavg_window_yr$Year == yr)] <- 
+    df$JDay[which(df$Tmax_mavg == max(df$Tmax_mavg))] + 10
+  
+  ma_start <- 
+  
+  stn_data_plot$MA_Start[which(stn_data_plot$Year == yr &
+                                 stn_data_plot$JDay == )] <- 
+    mavg_window_yr$Start[which(mavg_window_yr$Year == yr)]
+  stn_data_plot$MA_End[which(stn_data_plot$Year == yr)] <- 
+    mavg_window_yr$End[which(mavg_window_yr$Year == yr)]
+}
+rm(yr, df)
+
+# May 15 - July 15
+df <- filter(stn_data_plot, JDay >= 135 & JDay <= 196)
+mavg_window_avg <- data.frame(
+  Start = df$JDay[
+    which(df$Tmax_JDay_mavg == 
+            max(df$Tmax_JDay_mavg, na.rm = TRUE))[1]
+    ] - 10,
+  End = df$JDay[
+    which(df$Tmax_JDay_mavg == 
+            max(df$Tmax_JDay_mavg, na.rm = TRUE))[1]
+    ] + 10
+)
+rm(df)
+
+
+# The plot
+p <- ggplot(data = stn_data_plot) +
+  
+  # Add Tmax daily values
+  geom_point(mapping = aes(x = JDay, y = Tmax, color = factor(Year)),
+             alpha = 0.5, size = 2) +
+  
+  # Add moving average windows
+  geom_segment(mapping = 
+                 aes(x = MA_Start, xend = MA_End,
+                     y = 70, yend = 70, color = factor(Year))) +
+  
+  gghighlight() + 
+  scale_color_viridis_d() +
+  facet_wrap(~ Year, ncol = 1) +
+  
+  annotate(geom = "segment", 
+           x = mavg_window_avg$Start, xend = mavg_window_avg$End, 
+           y = 60, yend = 60) +
+  
+  # Add dotted line to mark period of interest
+  
+  # Specify axis breaks, gridlines, and limits
+  scale_x_continuous(
+    breaks = c(121, 135, 152, 166, 182, 196, 213),
+    labels = c("May 1", "May 15", "Jun 1", "Jun 15", "Jul 1", "Jul 15", "Aug 1"),
+    limits = c(119, 215),
+    expand = c(0.0, 0.0)
+  ) +
+  
+  scale_y_continuous(
+    breaks = seq(from = 0, to = max(stn_data$Tmax, na.rm = TRUE), by = 5),
+    limits = c(
+      min(filter(stn_data, JDay >= 134 & JDay <= 197)$Tmax, na.rm = TRUE) - 1,
+      max(filter(stn_data, JDay >= 134 & JDay <= 197)$Tmax, na.rm = TRUE) + 1),
+    expand = c(0.0, 0.0)
+  ) +
+  
+  # Add the title, subtitle, axis labels, and caption
+  ggtitle("Daily Maximum Temperature") +
+  labs(subtitle = "AZMET Willcox Bench station, 2017-2020",
+       x = "\nDate",
+       y = "°F\n",
+       caption = "\ndata source: AZMET (cals.arizona.edu/azmet)") +
+  
+  # Further customize the figure appearance
+  theme_light(base_family = "Source Sans Pro") +
+  theme(axis.line = element_blank(),
+        axis.text.x = element_text(color = "gray40", size = 10),
+        axis.text.y = element_text(color = "gray40", size = 10),
+        axis.ticks.x.bottom = element_line(color = "gray80", size = 0.25),
+        axis.ticks.y = element_blank(),
+        axis.ticks.length.x = unit(0.0, "mm"),
+        axis.ticks.length.y = unit(0.0, "mm"),
+        axis.title.x = element_text(color = "gray40", size = 10),
+        axis.title.y = element_text(color = "gray40", size = 10),
+        legend.direction = "vertical",
+        legend.spacing = unit(1.0, 'mm'),
+        legend.text = element_blank(),
+        legend.title = element_text(color = "gray40", size = 10),
+        legend.position = "right",
+        panel.border = element_blank(),
+        panel.grid.major.x = element_line(color = "gray80", size = 0.25),
+        panel.grid.major.y = element_line(color = "gray80", size = 0.25),
+        panel.grid.minor.x = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        plot.caption = element_text(color = "gray40", hjust = 0.0, size = 8),
+        plot.caption.position = "plot",
+        plot.margin = unit(c(1, 1 ,1, 1), "mm"),
+        plot.subtitle = (element_text(family = "Source Serif Pro", size = 12)), 
+        plot.title = (
+          element_text(face = "bold", family = "Source Serif Pro", size = 16)
+        ),
+        plot.title.position = "plot")
+
+p
+
+#  Save the figure as a .png file in the current directory
+ggsave(file = paste("hottest-three-week-period-azmet-willcox-bench-",
+                    Sys.Date(),
+                    ".eps"),
+       plot = p, device = cairo_pdf, path = NULL, scale = 1,
+       width = 6, height = 4, units = "in", dpi = 300)
+  
+  
+  
+
+
+
+
+
+
+
+# FIN --------------------
+
+
+
+
 
 # For text annotation
 months <- c("Jan", "Feb", "Mar", "Apr", "May", "Jun", 
             "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
 stn_data["Month_name"] <- NA
 stn_data$Month_name <- months[stn_data$Month]
-
-# Calculate average maximum temperature by calendar day and moving average of 
-# daily average values for the station period of record
-stn_data_avg <- as.data.frame(seq(from = 1, to = 365))
-colnames(stn_data_avg) <- "JDay"
-stn_data_avg["Tmax_davg"] <- NA
-stn_data_avg["Tmax_mavgdavg"] <- NA
-
-for (cal_day in min(stn_data_avg$JDay):max(stn_data_avg$JDay)) {
-  stn_data_avg$Tmax_davg[cal_day] <-  
-    mean(stn_data$Tmax[which(stn_data$JDay == cal_day)], na.rm = TRUE)
-}
-rm(cal_day)
-
-stn_data_avg$Tmax_mavgdavg <- stats::filter(
-  x = stn_data_avg$Tmax_davg, 
-  filter = rep(1, filter_length) / filter_length,
-  method = "convolution",
-  sides = 2,
-  circular = FALSE)
-stn_data_avg$Tmax_mavgdavg <- as.numeric(stn_data_avg$Tmax_mavgdavg)
 
 # For text annotation
 stn_data_avg["Month_name"] <- NA
