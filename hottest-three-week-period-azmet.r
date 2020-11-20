@@ -99,7 +99,7 @@ for (yr in min(stn_data$Year):max(stn_data$Year)) {
 rm(yr, df)
 
 
-# MAKE AND SAVE TIMESERIES PLOT --------------------
+# PREP FOR TIMESERIES PLOT --------------------
 
 
 stn_data_plot <- filter(stn_data, Month >= 4 & Month <= 8)
@@ -122,60 +122,118 @@ for (yr in min(stn_data_plot$Year):max(stn_data_plot$Year)) {
 }
 rm(yr, df)
 
-
-
-
-# Create reference tables for start and end Julian days of 21-day period 
-# centered on maximum 21-day moving average values for individual years and 
-# for overall station record
-mavg_window_yr <- as.data.frame(min(stn_data_plot$Year):max(stn_data_plot$Year))
-colnames(mavg_window_yr) <- "Year"
+# Create a reference table for start and end Julian days of 21-day period 
+# centered on maximum 21-day moving average values for individual years
+mavg_window_yr <- 
+  data.frame(Year = min(stn_data_plot$Year):max(stn_data_plot$Year))
+mavg_window_yr["Month_start"] <- NA
+mavg_window_yr["Month_name_start"] <- NA
+mavg_window_yr["Day_start"] <- NA
+mavg_window_yr["Month_end"] <- NA
+mavg_window_yr["Month_name_end"] <- NA
+mavg_window_yr["Day_end"] <- NA
 mavg_window_yr["Start"] <- NA
 mavg_window_yr["End"] <- NA
-#stn_data_plot["MA_Start"] <- NA
-#stn_data_plot["MA_End"] <- NA
 
 for (yr in min(stn_data_plot$Year):max(stn_data_plot$Year)) {
   # May 15 - July 15
   df <- filter(stn_data_plot, Year == yr & JDay >= 135 & JDay <= 196)
   
-  ma_start <- df$JDay[which(df$Tmax_mavg == max(df$Tmax_mavg))] - 10
-  ma_end <- df$JDay[which(df$Tmax_mavg == max(df$Tmax_mavg))] + 10
+  mavg_window_yr$Start[which(mavg_window_yr$Year == yr)] <-
+    df$JDay[which(df$Tmax_mavg == max(df$Tmax_mavg))] - 10
+  mavg_window_yr$End[which(mavg_window_yr$Year == yr)] <- 
+    df$JDay[which(df$Tmax_mavg == max(df$Tmax_mavg))] + 10
   
-  mavg_window_yr$Start[which(mavg_window_yr$Year == yr)] <- ma_start
-  mavg_window_yr$End[which(mavg_window_yr$Year == yr)] <- ma_end
+  # Some 21-day ranges may be outside of the May 15 - July 15 window
+  mavg_window_yr$Month_start[which(mavg_window_yr$Year == yr)] <- 
+    stn_data_plot$Month[
+      which(stn_data_plot$Year == yr &
+              stn_data_plot$Tmax_mavg == max(df$Tmax_mavg)) - 10
+      ]
+  mavg_window_yr$Month_name_start[which(mavg_window_yr$Year == yr)] <- 
+    stn_data_plot$Month_name[
+      which(stn_data_plot$Year == yr &
+              stn_data_plot$Tmax_mavg == max(df$Tmax_mavg)) - 10
+      ]
+  mavg_window_yr$Day_start[which(mavg_window_yr$Year == yr)] <- 
+    stn_data_plot$Day[
+      which(stn_data_plot$Year == yr &
+              stn_data_plot$Tmax_mavg == max(df$Tmax_mavg)) - 10
+      ]
+  mavg_window_yr$Month_end[which(mavg_window_yr$Year == yr)] <- 
+    stn_data_plot$Month[
+      which(stn_data_plot$Year == yr &
+              stn_data_plot$Tmax_mavg == max(df$Tmax_mavg)) + 10
+      ]
+  mavg_window_yr$Month_name_end[which(mavg_window_yr$Year == yr)] <- 
+    stn_data_plot$Month_name[
+      which(stn_data_plot$Year == yr &
+              stn_data_plot$Tmax_mavg == max(df$Tmax_mavg)) + 10
+      ]
+  mavg_window_yr$Day_end[which(mavg_window_yr$Year == yr)] <- 
+    stn_data_plot$Day[
+      which(stn_data_plot$Year == yr &
+              stn_data_plot$Tmax_mavg == max(df$Tmax_mavg)) + 10
+      ]
+  
 }
-rm(yr, df, ma_start, ma_end)
+rm(yr, df)
+
+# Create a reference table for start and end Julian days of 21-day period 
+# centered on maximum 21-day moving average values for overall station record
 
 # May 15 - July 15
 df <- filter(stn_data_plot, JDay >= 135 & JDay <= 196)
 mavg_window_avg <- data.frame(
+  Month_start = df$Month[
+    which(df$Tmax_JDay_mavg == max(df$Tmax_JDay_mavg, na.rm = TRUE))[1] - 10
+    ],
+  Month_name_start = df$Month_name[
+    which(df$Tmax_JDay_mavg == max(df$Tmax_JDay_mavg, na.rm = TRUE))[1] - 10
+    ],
+  Month_day_start = df$Day[
+    which(df$Tmax_JDay_mavg == max(df$Tmax_JDay_mavg, na.rm = TRUE))[1] - 10
+    ],
+  Month_end = df$Month[
+    which(df$Tmax_JDay_mavg == max(df$Tmax_JDay_mavg, na.rm = TRUE))[1] + 10
+    ],
+  Month_name_end = df$Month_name[
+    which(df$Tmax_JDay_mavg == max(df$Tmax_JDay_mavg, na.rm = TRUE))[1] + 10
+    ],
+  Month_day_end = df$Day[
+    which(df$Tmax_JDay_mavg == max(df$Tmax_JDay_mavg, na.rm = TRUE))[1] + 10
+    ],
   Start = df$JDay[
-    which(df$Tmax_JDay_mavg == 
-            max(df$Tmax_JDay_mavg, na.rm = TRUE))[1]
+    which(df$Tmax_JDay_mavg == max(df$Tmax_JDay_mavg, na.rm = TRUE))[1]
     ] - 10,
   End = df$JDay[
-    which(df$Tmax_JDay_mavg == 
-            max(df$Tmax_JDay_mavg, na.rm = TRUE))[1]
+    which(df$Tmax_JDay_mavg == max(df$Tmax_JDay_mavg, na.rm = TRUE))[1]
     ] + 10
 )
 rm(df)
 
+# Create a reference table to depict the analysis period
+analysis_window <- 
+  data.frame(x_min = 135, x_max = 196, y_min = min(stn_data_plot$Tmax), 
+             y_max = max(stn_data_plot$Tmax))
 
-# The plot
+
+# MAKE AND SAVE FOR TIMESERIES PLOT --------------------
+
+
 p <- ggplot(data = stn_data_plot) +
   
-  # Add annotation to mark May 15 - July 15 period of interest
-  #geom_vline(xintercept = c(135, 196), color = "gray40", size = 0.5) +
-  annotate(geom = "rect", xmin = 135, xmax = 196,
-           ymin = min(stn_data_plot$Tmax), ymax = max(stn_data_plot$Tmax), 
-           alpha = 0.25, color = NA, fill = "gray80") +
+  # Add annotation to mark May 15 - July 15 period of interest, as 'geom_rect'
+  # in order to place behind other data (annotations go on top)
+  geom_rect(data = analysis_window, 
+            mapping = aes(xmin = x_min, xmax = x_max, ymin = y_min, 
+                          ymax = y_max),
+            alpha = 0.33, color = NA, fill = "gray80") +
   
   geom_segment(
     mapping = aes(x = (135 + 1), xend = (196 - 1), y = 62.5, yend = 62.5),
-    arrow = arrow(
-      angle = 45, length = unit(1.5, "mm"), ends = "both", type = "closed"
-    ),
+    arrow = arrow(angle = 45, length = unit(1.5, "mm"), ends = "both", 
+                  type = "closed"),
     color = "gray40", size = 0.5
   ) +
   
@@ -184,25 +242,32 @@ p <- ggplot(data = stn_data_plot) +
             fontface = "plain", hjust = "center", vjust = "bottom", 
             size = 6 / .pt, color = "gray40", angle = 0) +
   
+  # Add Tmax 21-day moving average
+  geom_line(mapping = aes(x = JDay, y = Tmax_mavg, color = factor(Year))) +
+  
+  # Add Tmax daily values
+  geom_point(mapping = aes(x = JDay, y = Tmax, color = factor(Year)), 
+             alpha = 0.5) +
+  
   # Add moving average windows for individual years
   geom_segment(data = mavg_window_yr,
                mapping = aes(x = Start, xend = End, y = 77.5, yend = 77.5),
                color = viridis(n = 4, alpha = 1.0, begin = 0.0, end = 0.8),
                size = 3) +
   
-  # Add Tmax daily values
-  geom_point(mapping = aes(x = JDay, y = Tmax, color = factor(Year))) +
+  geom_text(data = mavg_window_yr, mapping = aes(x = (Start - 1), y = 77.5),
+            label = paste(mavg_window_yr$Month_name_start, 
+                          mavg_window_yr$Day_start, sep = " "), 
+            family = "Source Sans Pro", fontface = "bold", hjust = "right", 
+            vjust = "center", size = 8 / .pt, angle = 0,
+            color = viridis(n = 4, alpha = 1.0, begin = 0.0, end = 0.8)) +
   
-  # Add Tmax 21-day moving average
-  geom_line(mapping = aes(x = JDay, y = Tmax_mavg, color = factor(Year))) +
-  
-  # Add symbology for individual years
-  gghighlight(unhighlighted_params = aes(color = "gray70")) +
-  scale_color_viridis_d(alpha = 1.0, begin = 0.0, end = 0.8) +
-  
-  facet_wrap(~ factor(Year, levels = sort(unique(stn_data_plot$Year), 
-                                          decreasing = TRUE)), 
-             ncol = 1) +
+  geom_text(data = mavg_window_yr, mapping = aes(x = (End + 1), y = 77.5),
+            label = paste(mavg_window_yr$Month_name_end, 
+                          mavg_window_yr$Day_end, sep = " "), 
+            family = "Source Sans Pro", fontface = "bold", hjust = "left", 
+            vjust = "center", size = 8 / .pt, angle = 0,
+            color = viridis(n = 4, alpha = 1.0, begin = 0.0, end = 0.8)) +
   
   # Add moving average window based on daily mean maximum temperatures
   annotate(geom = "segment", 
@@ -210,15 +275,26 @@ p <- ggplot(data = stn_data_plot) +
            y = 72.5, yend = 72.5, alpha = 1.0, color = "gray60", size = 3) +
   
   annotate(geom = "text", x = (mavg_window_avg$Start - 1), y = 72.5, 
-           label = paste(month(6), "day", sep = " "), 
-           family = "Source Sans Pro", fontface = "plain", 
+           label = paste(mavg_window_avg$Month_name_start, 
+                         mavg_window_avg$Month_day_start, sep = " "), 
+           family = "Source Sans Pro", fontface = "bold", 
            hjust = "right", vjust = "center", 
-           size = 6 / .pt, color = "gray60", angle = 0) +
+           size = 8 / .pt, color = "gray60", angle = 0) +
   
   annotate(geom = "text", x = (mavg_window_avg$End + 1), y = 72.5, 
-           label = "end date", family = "Source Sans Pro", fontface = "plain", 
+           label = paste(mavg_window_avg$Month_name_end, 
+                         mavg_window_avg$Month_day_end, sep = " "), 
+           family = "Source Sans Pro", fontface = "bold", 
            hjust = "left", vjust = "center", 
-           size = 6 / .pt, color = "gray60", angle = 0) +
+           size = 8 / .pt, color = "gray60", angle = 0) +
+  
+  # Add symbology for individual years
+  #gghighlight() +
+  scale_color_viridis_d(alpha = 1.0, begin = 0.0, end = 0.8) +
+  
+  facet_wrap(~ factor(Year, levels = sort(unique(stn_data_plot$Year), 
+                                          decreasing = TRUE)), 
+             ncol = 1) +
   
   # Specify axis breaks, gridlines, and limits
   scale_x_continuous(
