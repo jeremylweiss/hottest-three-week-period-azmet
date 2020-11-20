@@ -228,7 +228,7 @@ p <- ggplot(data = stn_data_plot) +
   geom_rect(data = analysis_window, 
             mapping = 
               aes(xmin = x_min, xmax = x_max, ymin = y_min, ymax = (y_max + 1)),
-            alpha = 0.33, color = NA, fill = "gray80") +
+            alpha = 0.2, color = NA, fill = "gray80") +
   
   geom_segment(
     mapping = aes(x = (135 + 1), xend = (196 - 1), y = 62.5, yend = 62.5),
